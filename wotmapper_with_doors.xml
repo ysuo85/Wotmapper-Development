@@ -1,0 +1,1783 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE MudletPackage>
+<MudletPackage version="1.0">
+    <TriggerPackage>
+        <TriggerGroup isActive="yes" isFolder="yes" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+            <name>mapper</name>
+            <script></script>
+            <triggerType>0</triggerType>
+            <conditonLineDelta>0</conditonLineDelta>
+            <mStayOpen>0</mStayOpen>
+            <mCommand></mCommand>
+            <packageName>wotmapper v2.2</packageName>
+            <mFgColor>#ff0000</mFgColor>
+            <mBgColor>#ffff00</mBgColor>
+            <mSoundFile></mSoundFile>
+            <colorTriggerFgColor>#000000</colorTriggerFgColor>
+            <colorTriggerBgColor>#000000</colorTriggerBgColor>
+            <regexCodeList/>
+            <regexCodePropertyList/>
+            <Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="yes" isSoundTrigger="no" isColorTrigger="yes" isColorTriggerFg="yes" isColorTriggerBg="no">
+                <name>catch name</name>
+                <script>wotmudmapper.RoomName=matches[1]
+wotmudmapper.roomdesc=&quot;&quot;
+--echo(&quot;\n&quot;..wotmudmapper.currentID..&quot;\n&quot;)</script>
+                <triggerType>0</triggerType>
+                <conditonLineDelta>1</conditonLineDelta>
+                <mStayOpen>1</mStayOpen>
+                <mCommand></mCommand>
+                <packageName></packageName>
+                <mFgColor>#ff0000</mFgColor>
+                <mBgColor>#ffff00</mBgColor>
+                <mSoundFile></mSoundFile>
+                <colorTriggerFgColor>#000080</colorTriggerFgColor>
+                <colorTriggerBgColor>#008080</colorTriggerBgColor>
+                <regexCodeList>
+                    <string>FG14BG0</string>
+                </regexCodeList>
+                <regexCodePropertyList>
+                    <integer>6</integer>
+                </regexCodePropertyList>
+                <Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="yes" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="yes" isColorTriggerFg="no" isColorTriggerBg="no">
+                    <name>mapdescription</name>
+                    <script>line=getCurrentLine()
+selectString(line,1)
+if line==wotmudmapper.RoomName or string.find(line,[[ HP:]]) then
+	setTriggerStayOpen(&quot;catch name&quot;,1)
+else
+	if not string.find(line,&quot;obvious exits:&quot;) then
+		wotmudmapper.roomdesc=wotmudmapper.roomdesc ..&quot;\n&quot;.. line
+		setTriggerStayOpen(&quot;catch name&quot;,1)
+
+	end
+
+end
+</script>
+                    <triggerType>0</triggerType>
+                    <conditonLineDelta>1</conditonLineDelta>
+                    <mStayOpen>0</mStayOpen>
+                    <mCommand></mCommand>
+                    <packageName></packageName>
+                    <mFgColor>#aa0000</mFgColor>
+                    <mBgColor>#000000</mBgColor>
+                    <mSoundFile></mSoundFile>
+                    <colorTriggerFgColor>#000000</colorTriggerFgColor>
+                    <colorTriggerBgColor>#000000</colorTriggerBgColor>
+                    <regexCodeList>
+                        <string>^(.*)$</string>
+                    </regexCodeList>
+                    <regexCodePropertyList>
+                        <integer>1</integer>
+                    </regexCodePropertyList>
+                    <Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="yes" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+                        <name>getexits</name>
+                        <script>local x,y,z,i,connect,areaID,tempqueue
+local exits,name,tempID,lastID,mapCommand,lastExits,currentRoomName,currentID,currentExits
+
+	-------------------------------------------
+	-----[A]Specifying the type of movement----
+	-------------------------------------------
+
+	-------------------------------------------
+	--------If not fleeing in any form,--------
+	-----------then take from queue------------
+	-------------------------------------------
+if wotmudmapper.flee~=true then
+	mapCommand=List:popleft(wotmudmapper.queue)
+
+	-------------------------------------------
+	----------else, var flee is true-----------
+	-------------------------------------------
+else
+
+	-------------------------------------------
+	--checking if next command in line is flee-
+	-------------------------------------------
+	mapCommand=List:checkleftvalue(	wotmudmapper.queue)
+
+	-------------------------------------------
+	----if yes, then take command from queue---
+	-------------------------------------------
+	if checkingFlee(mapCommand) then
+		List:popleft(wotmudmapper.queue)
+
+	else
+	-------------------------------------------
+	------if no, then it is autowimpy flee-----
+	-------------------------------------------
+		mapCommand=&quot;f&quot;
+	end
+	-------------------------------------------
+	--setting flee at false for the following--
+	----------------map movement---------------
+	wotmudmapper.flee=false
+end
+--------finished specifying if movement was regular or a flee[/A]--------
+---------------------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------------------
+
+	-------------------------------------------
+	----------[B]setting up variables----------
+	-------------------------------------------
+
+lastID=wotmudmapper.currentID   		--loading the previous roomID.
+if lastID~=nil then
+	lastExits=getRoomExits(lastID)		--loading table containing previous roomID exits
+end
+currentRoomName=wotmudmapper.RoomName				--loading the current room RoomName that was stored from &quot;catch name&quot; trigger
+description=wotmudmapper.roomdesc					--loading the current room roomdesc that was stored from &quot;mapdescription&quot; trigger
+connect=wotmudmapper.autoconnect
+mapping=wotmudmapper.mapping							--loading the mapping logic variable that toggles mapping on and off.
+messages=wotmudmapper.messages						--loading the messages logic variable that toggles variables on and off.
+
+	-------------------------------------------
+	----the following subcode puts current-----
+	--------------exits in a table-------------
+	-------------------------------------------
+currentExits=string.split(matches[2],&quot; &quot;)
+local k=1
+while currentExits[k] do
+	if currentExits[k]==&quot;&quot; then
+		currentExits[k]=nil
+	end
+	k=k+1
+end
+------------Finished initialising variables[/B]---------------
+---------------------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------------------
+	-------------------------------------------
+	--------[C]controlling map movement--------
+	-------------------------------------------
+
+	-------------------------------------------
+	---[C.1]if mapCommand is a direction and---
+	------currentID is a valid room value------
+	-------------------------------------------
+if not checkingLook(mapCommand) and not checkingFlee(mapCommand) and mapCommand~=nil and lastID~=nil  then
+
+	-------------------------------------------
+	---[C.1.a]If room is a neighbouring room---
+	-----------------then move-----------------
+	if wotmudmapper:IsNearRoom(mapCommand,lastID,description,lastExits,currentRoomName)  then
+		if messages==true then
+			cecho(&quot;\nshow if moved\n&quot;)
+		end  --[\C.1.a]
+
+	-------------------------------------------
+	----[C.1.b]if mapper can't find a room-----
+	----then links with a new/existing room----
+	-------------------------------------------
+	elseif  lastID~=nil and connect==true and mapping==true  then
+
+		tempID=wotmudmapper:isRoom(currentRoomName)
+		if (not tempID) or wotmudmapper.forceroom==true   then
+			x,y,z=wotmudmapper:setCoordinatesOffset(lastID,mapCommand)
+			areaID=getRoomArea(lastID	)
+			tempID=wotmudmapper:CreateRoom(x,y,z,currentExits,areaID)
+			wotmudmapper:linkRoom(tempID,lastID,mapCommand,currentExits)
+			centerview(tempID)
+			wotmudmapper.currentID=tempID
+			if messages==true then
+				cecho(&quot;\nshow if linked with new room\n&quot;)
+			end
+			wotmudmapper.forceroom=false
+		elseif tempID~=lastID then
+			wotmudmapper:linkRoom(tempID,lastID,mapCommand,currentExits)
+			centerview(tempID)
+			wotmudmapper.currentID=tempID
+			if messages==true then
+				cecho(&quot;\nshow if linked with existed room\n&quot;)
+			end
+		else
+			wotmudmapper.lastID=nil ---temporary--
+		------------------------------------------------------------------------------------------
+		---if mapping is false and you pass a room that isn't connected, you must search for it---
+		------------------------------------------------------------------------------------------
+		end
+	end
+
+------------------------
+-----handling flees-----
+------------------------
+elseif lastID~=nil and checkingFlee(mapCommand) then
+	wotmudmapper.currentID=wotmudmapper:findingRoomAfterFlee(currentRoomName,description,lastExits,currentExits)
+	echo(&quot;\nFleeing&quot;)
+
+------------------------
+----looking at room-----
+------------------------
+elseif	 lastID~=nil and currentRoomName==getRoomName(lastID) and description==getRoomUserData(lastID,&quot;description&quot;) then
+	if messages==true then
+		cecho(&quot;\nLooking at Room&quot;)
+	end
+	wotmudmapper.currentID=lastID
+	centerview(lastID)
+--------------------------------
+----else,mapper has to search---
+----the room it is in-----------
+--------------------------------
+else
+	currentID=wotmudmapper:isRoom(currentRoomName)
+	if messages==true then
+		if lastID then
+			cecho(&quot;\nRoom found!\n&quot;)
+			cecho(lastID)
+		else
+			cecho(&quot;\nLost!\n&quot;)
+		end
+	end
+	wotmudmapper.currentID=currentID
+end
+
+---------------------------------------------
+---showing the doors that have been stored---
+---------------------------------------------
+currentID=wotmudmapper.currentID
+if currentID~=nil then
+	if getRoomUserData(currentID,&quot;n&quot;)~=&quot;&quot; then
+		cecho(&quot;\n&lt;IndianRed&gt;Door north: &lt;white&gt;&quot;..getRoomUserData(currentID,&quot;n&quot;))
+		if doorScript.autodoor == true then
+			doorScript.setMyDoor(getRoomUserData(currentID,&quot;n&quot;), &quot;north&quot;)
+		end
+	end
+	if getRoomUserData(currentID,&quot;s&quot;)~=&quot;&quot; then
+		cecho(&quot;\n&lt;IndianRed&gt;Door south: &lt;white&gt;&quot;..getRoomUserData(currentID,&quot;s&quot;))
+		if doorScript.autodoor == true then
+			doorScript.setMyDoor(getRoomUserData(currentID,&quot;s&quot;), &quot;south&quot;)
+		end
+	end
+	if getRoomUserData(currentID,&quot;u&quot;)~=&quot;&quot; then
+		cecho(&quot;\n&lt;IndianRed&gt;Door up: &lt;white&gt;&quot;..getRoomUserData(currentID,&quot;u&quot;))
+		if doorScript.autodoor == true then
+			doorScript.setMyDoor(getRoomUserData(currentID,&quot;u&quot;), &quot;up&quot;)
+		end
+	end
+	if getRoomUserData(currentID,&quot;d&quot;)~=&quot;&quot; then
+		cecho(&quot;\n&lt;IndianRed&gt;Door down: &lt;white&gt;&quot;..getRoomUserData(currentID,&quot;d&quot;))
+		if doorScript.autodoor == true then
+			doorScript.setMyDoor(getRoomUserData(currentID,&quot;d&quot;), &quot;down&quot;)
+		end
+	end
+	if getRoomUserData(currentID,&quot;e&quot;)~=&quot;&quot; then
+		cecho(&quot;\n&lt;IndianRed&gt;Door east: &lt;white&gt;&quot;..getRoomUserData(currentID,&quot;e&quot;))
+		if doorScript.autodoor == true then
+			doorScript.setMyDoor(getRoomUserData(currentID,&quot;e&quot;), &quot;east&quot;)
+		end
+	end
+	if getRoomUserData(currentID,&quot;w&quot;)~=&quot;&quot; then
+		cecho(&quot;\n&lt;IndianRed&gt;Door west: &lt;white&gt;&quot;..getRoomUserData(currentID,&quot;w&quot;))
+		if doorScript.autodoor == true then
+			doorScript.setMyDoor(getRoomUserData(currentID,&quot;w&quot;), &quot;west&quot;)
+		end
+	end
+end
+</script>
+                        <triggerType>0</triggerType>
+                        <conditonLineDelta>0</conditonLineDelta>
+                        <mStayOpen>0</mStayOpen>
+                        <mCommand></mCommand>
+                        <packageName></packageName>
+                        <mFgColor>#e22019</mFgColor>
+                        <mBgColor>#000000</mBgColor>
+                        <mSoundFile></mSoundFile>
+                        <colorTriggerFgColor>#000000</colorTriggerFgColor>
+                        <colorTriggerBgColor>#000000</colorTriggerBgColor>
+                        <regexCodeList>
+                            <string>\[ obvious exits: (.*)\]</string>
+                        </regexCodeList>
+                        <regexCodePropertyList>
+                            <integer>1</integer>
+                        </regexCodePropertyList>
+                    </Trigger>
+                </Trigger>
+            </Trigger>
+            <Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="yes" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+                <name>movement failure</name>
+                <script>	List:popleft(wotmudmapper.queue)</script>
+                <triggerType>0</triggerType>
+                <conditonLineDelta>0</conditonLineDelta>
+                <mStayOpen>0</mStayOpen>
+                <mCommand></mCommand>
+                <packageName></packageName>
+                <mFgColor>#ffaa00</mFgColor>
+                <mBgColor>#000000</mBgColor>
+                <mSoundFile></mSoundFile>
+                <colorTriggerFgColor>#000000</colorTriggerFgColor>
+                <colorTriggerBgColor>#000000</colorTriggerBgColor>
+                <regexCodeList>
+                    <string>Alas, you cannot go that way...$</string>
+                    <string>You can't ride in there.$</string>
+                    <string>An (.*) blocks the way.$</string>
+                    <string>A (.*) blocks the way.$</string>
+                    <string>No way!  You're fighting for your life!$</string>
+                    <string>You need a boat to go there.$</string>
+                    <string>Your mount is too exhausted.$</string>
+                    <string>You can't ride there on a horse!$</string>
+                    <string>Are you crazy? You can't just walk out of a second story window!$</string>
+                    <string>It is pitch black...$</string>
+                    <string>Nah... You feel too relaxed to do that..$</string>
+                    <string>You would need to swim there, you can't just walk it.$</string>
+                    <string>You can't see a damned thing, you're blinded!$</string>
+                    <string>You'll have to take your chances and JUMP OUT!</string>
+                    <string>Your mount is engaged in combat!$</string>
+                    <string>You shudder at the concept of crossing water.$</string>
+                    <string>The iron golem blocks the path of (.+)$</string>
+                    <string>You are too exhausted.$</string>
+                    <string>Berserk! Death! Death! Fight to the death!$</string>
+                    <string>Maybe you should get on your feet first\?$</string>
+                    <string>You try, but the mind-numbing cold prevents you..$</string>
+                    <string>The ground gives way, and you are sent hurtling down the embankment!$</string>
+                    <string>You can't ride on water.$</string>
+                    <string>In your dreams, or what\?$</string>
+                    <string>The Eye of the World is no longer the place for you, (.*).$</string>
+                    <string>Your mount ought to be awake and standing first!</string>
+                    <string>You can't leave the Circle yet for(.*)since you were pkilled!</string>
+                    <string>You can't leave the Circle for (.+), since you were pkilled!</string>
+                </regexCodeList>
+                <regexCodePropertyList>
+                    <integer>1</integer>
+                    <integer>1</integer>
+                    <integer>1</integer>
+                    <integer>1</integer>
+                    <integer>1</integer>
+                    <integer>1</integer>
+                    <integer>1</integer>
+                    <integer>1</integer>
+                    <integer>1</integer>
+                    <integer>1</integer>
+                    <integer>1</integer>
+                    <integer>1</integer>
+                    <integer>1</integer>
+                    <integer>1</integer>
+                    <integer>1</integer>
+                    <integer>1</integer>
+                    <integer>1</integer>
+                    <integer>1</integer>
+                    <integer>1</integer>
+                    <integer>1</integer>
+                    <integer>1</integer>
+                    <integer>1</integer>
+                    <integer>1</integer>
+                    <integer>1</integer>
+                    <integer>1</integer>
+                    <integer>1</integer>
+                    <integer>1</integer>
+                    <integer>1</integer>
+                </regexCodePropertyList>
+            </Trigger>
+            <Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+                <name>doors that are closed</name>
+                <script>local direction=List:popleft(wotmudmapper.queue)
+local currentID=wotmudmapper.currentID
+if wotmudmapper.mapping==true and currentID~=nil  and getRoomUserData(currentID,direction)==&quot;&quot; then
+	wotmudmapper:createdoors(currentID,direction,1,matches[2])
+end</script>
+                <triggerType>0</triggerType>
+                <conditonLineDelta>0</conditonLineDelta>
+                <mStayOpen>0</mStayOpen>
+                <mCommand></mCommand>
+                <packageName></packageName>
+                <mFgColor>#ff0000</mFgColor>
+                <mBgColor>#ffff00</mBgColor>
+                <mSoundFile></mSoundFile>
+                <colorTriggerFgColor>#000000</colorTriggerFgColor>
+                <colorTriggerBgColor>#000000</colorTriggerBgColor>
+                <regexCodeList>
+                    <string>The (.*) seems to be closed.$</string>
+                </regexCodeList>
+                <regexCodePropertyList>
+                    <integer>1</integer>
+                </regexCodePropertyList>
+            </Trigger>
+            <Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+                <name>Night/blind movement.</name>
+                <script>wotmudmapper.currentID=nil</script>
+                <triggerType>0</triggerType>
+                <conditonLineDelta>0</conditonLineDelta>
+                <mStayOpen>0</mStayOpen>
+                <mCommand></mCommand>
+                <packageName></packageName>
+                <mFgColor>#ff0000</mFgColor>
+                <mBgColor>#ffff00</mBgColor>
+                <mSoundFile></mSoundFile>
+                <colorTriggerFgColor>#000000</colorTriggerFgColor>
+                <colorTriggerBgColor>#000000</colorTriggerBgColor>
+                <regexCodeList>
+                    <string>It is pitch black...$</string>
+                </regexCodeList>
+                <regexCodePropertyList>
+                    <integer>1</integer>
+                </regexCodePropertyList>
+            </Trigger>
+            <Trigger isActive="no" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+                <name>doors in general</name>
+                <script>local currentID=wotmudmapper.currentID
+local direction=wotmudmapper.door
+if wotmudmapper.mapping==true and currentID~=nil and getRoomUserData(currentID,direction)==&quot;&quot;then
+	wotmudmapper:createdoors(currentID,direction,1,matches[2])
+end</script>
+                <triggerType>0</triggerType>
+                <conditonLineDelta>0</conditonLineDelta>
+                <mStayOpen>0</mStayOpen>
+                <mCommand></mCommand>
+                <packageName></packageName>
+                <mFgColor>#ff0000</mFgColor>
+                <mBgColor>#ffff00</mBgColor>
+                <mSoundFile></mSoundFile>
+                <colorTriggerFgColor>#000000</colorTriggerFgColor>
+                <colorTriggerBgColor>#000000</colorTriggerBgColor>
+                <regexCodeList>
+                    <string>The (.+) is open.$</string>
+                    <string>The (.+) is closed.$</string>
+                </regexCodeList>
+                <regexCodePropertyList>
+                    <integer>1</integer>
+                    <integer>1</integer>
+                </regexCodePropertyList>
+            </Trigger>
+            <Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+                <name>hidden doors</name>
+                <script>local currentID=wotmudmapper.currentID
+if wotmudmapper.mapping==true and currentID~=nil then
+	wotmudmapper:createdoors(currentID,wotmudmapper.door,2,matches[2])
+end</script>
+                <triggerType>0</triggerType>
+                <conditonLineDelta>0</conditonLineDelta>
+                <mStayOpen>0</mStayOpen>
+                <mCommand></mCommand>
+                <packageName></packageName>
+                <mFgColor>#ff0000</mFgColor>
+                <mBgColor>#ffff00</mBgColor>
+                <mSoundFile></mSoundFile>
+                <colorTriggerFgColor>#000000</colorTriggerFgColor>
+                <colorTriggerBgColor>#000000</colorTriggerBgColor>
+                <regexCodeList>
+                    <string>You skillfully discover a hidden (.+).</string>
+                </regexCodeList>
+                <regexCodePropertyList>
+                    <integer>1</integer>
+                </regexCodePropertyList>
+            </Trigger>
+            <Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+                <name>resetting queue</name>
+                <script>wotmudmapper.queue=List.new()</script>
+                <triggerType>0</triggerType>
+                <conditonLineDelta>0</conditonLineDelta>
+                <mStayOpen>0</mStayOpen>
+                <mCommand></mCommand>
+                <packageName></packageName>
+                <mFgColor>#ff0000</mFgColor>
+                <mBgColor>#ffff00</mBgColor>
+                <mSoundFile></mSoundFile>
+                <colorTriggerFgColor>#000000</colorTriggerFgColor>
+                <colorTriggerBgColor>#000000</colorTriggerBgColor>
+                <regexCodeList>
+                    <string>You are helped out of the coach by the driver.$</string>
+                </regexCodeList>
+                <regexCodePropertyList>
+                    <integer>1</integer>
+                </regexCodePropertyList>
+            </Trigger>
+            <Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="yes" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+                <name>autowimpy</name>
+                <script>wotmudmapper.flee=true</script>
+                <triggerType>0</triggerType>
+                <conditonLineDelta>0</conditonLineDelta>
+                <mStayOpen>0</mStayOpen>
+                <mCommand></mCommand>
+                <packageName></packageName>
+                <mFgColor>#ff007f</mFgColor>
+                <mBgColor>#000000</mBgColor>
+                <mSoundFile></mSoundFile>
+                <colorTriggerFgColor>#000000</colorTriggerFgColor>
+                <colorTriggerBgColor>#000000</colorTriggerBgColor>
+                <regexCodeList>
+                    <string>You flee head over heels.$</string>
+                </regexCodeList>
+                <regexCodePropertyList>
+                    <integer>1</integer>
+                </regexCodePropertyList>
+            </Trigger>
+            <Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+                <name>resuming trigger</name>
+                <script>if wotmudmapper.pausing==true then
+	wotmudmapper.pausing=false
+	echo(&quot;done&quot;)
+	wotmudmapper.queue=List.new()
+end</script>
+                <triggerType>0</triggerType>
+                <conditonLineDelta>0</conditonLineDelta>
+                <mStayOpen>0</mStayOpen>
+                <mCommand></mCommand>
+                <packageName></packageName>
+                <mFgColor>#ff0000</mFgColor>
+                <mBgColor>#ffff00</mBgColor>
+                <mSoundFile></mSoundFile>
+                <colorTriggerFgColor>#000000</colorTriggerFgColor>
+                <colorTriggerBgColor>#000000</colorTriggerBgColor>
+                <regexCodeList>
+                    <string>\*(.+)HP(.+) MV(.+)\&gt;</string>
+                </regexCodeList>
+                <regexCodePropertyList>
+                    <integer>1</integer>
+                </regexCodePropertyList>
+            </Trigger>
+            <Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+                <name>pausing trigger</name>
+                <script>wotmudmapper.pausing=true</script>
+                <triggerType>0</triggerType>
+                <conditonLineDelta>0</conditonLineDelta>
+                <mStayOpen>0</mStayOpen>
+                <mCommand></mCommand>
+                <packageName></packageName>
+                <mFgColor>#ff0000</mFgColor>
+                <mBgColor>#ffff00</mBgColor>
+                <mSoundFile></mSoundFile>
+                <colorTriggerFgColor>#000000</colorTriggerFgColor>
+                <colorTriggerBgColor>#000000</colorTriggerBgColor>
+                <regexCodeList>
+                    <string>\* Press \&lt;Return\&gt; to continue, q to quit \*&gt;$</string>
+                </regexCodeList>
+                <regexCodePropertyList>
+                    <integer>1</integer>
+                </regexCodePropertyList>
+            </Trigger>
+            <Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="yes" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+                <name>failing flees</name>
+                <script>local tempqueue=wotmudmapper.queue
+local 	mapCommand=List:popleft(tempqueue)
+
+if mapCommand==&quot;f&quot; then
+		List:popleft(wotmudmapper.queue)
+end</script>
+                <triggerType>0</triggerType>
+                <conditonLineDelta>0</conditonLineDelta>
+                <mStayOpen>0</mStayOpen>
+                <mCommand></mCommand>
+                <packageName></packageName>
+                <mFgColor>#ff0000</mFgColor>
+                <mBgColor>#000000</mBgColor>
+                <mSoundFile></mSoundFile>
+                <colorTriggerFgColor>#000000</colorTriggerFgColor>
+                <colorTriggerBgColor>#000000</colorTriggerBgColor>
+                <regexCodeList>
+                    <string>PANIC!  You couldn't escape!$</string>
+                </regexCodeList>
+                <regexCodePropertyList>
+                    <integer>1</integer>
+                </regexCodePropertyList>
+            </Trigger>
+        </TriggerGroup>
+    </TriggerPackage>
+    <TimerPackage/>
+    <AliasPackage>
+        <AliasGroup isActive="yes" isFolder="yes">
+            <name>door script</name>
+            <script></script>
+            <command></command>
+            <packageName></packageName>
+            <regex></regex>
+            <Alias isActive="yes" isFolder="no">
+                <name>sd1</name>
+                <script>doorScript.setMyDoor(matches[2], 1)
+cecho(&quot;&lt;light_blue&gt;doors[1] is now set as &quot; .. doorScript.doors[1] .. &quot;.\n&quot;)</script>
+                <command></command>
+                <packageName></packageName>
+                <regex>^sd1 (.+)$</regex>
+            </Alias>
+            <Alias isActive="yes" isFolder="no">
+                <name>sd2</name>
+                <script>doorScript.setMyDoor(matches[2], 2)
+cecho(&quot;&lt;light_blue&gt;doors[2] is now set as &quot; .. doorScript.doors[2] .. &quot;.\n&quot;)</script>
+                <command></command>
+                <packageName></packageName>
+                <regex>^sd2 (.+)$</regex>
+            </Alias>
+            <Alias isActive="yes" isFolder="no">
+                <name>autodoor</name>
+                <script>doorScript.toggleAutodoor()</script>
+                <command></command>
+                <packageName></packageName>
+                <regex>adoor</regex>
+            </Alias>
+        </AliasGroup>
+        <AliasGroup isActive="yes" isFolder="yes">
+            <name>mapper</name>
+            <script></script>
+            <command></command>
+            <packageName>wotmapper v2.2</packageName>
+            <regex></regex>
+            <Alias isActive="yes" isFolder="no">
+                <name>reset queue</name>
+                <script>wotmudmapper.queue=List.new()</script>
+                <command></command>
+                <packageName></packageName>
+                <regex>^queuereset$</regex>
+            </Alias>
+            <Alias isActive="yes" isFolder="no">
+                <name>mapping On/Off</name>
+                <script>local mapping=wotmudmapper.mapping
+
+if mapping==true then
+	wotmudmapper.mapping=false
+	cecho(&quot;\nMapping is &lt;red&gt;OFF&lt;white&gt;!&quot;)
+else
+	wotmudmapper.mapping=true
+	cecho(&quot;\nMapping is &lt;green&gt;ON&lt;white&gt;!&quot;)
+
+end</script>
+                <command></command>
+                <packageName></packageName>
+                <regex>^mapping$</regex>
+            </Alias>
+            <AliasGroup isActive="yes" isFolder="yes">
+                <name>coloring rooms</name>
+                <script></script>
+                <command></command>
+                <packageName></packageName>
+                <regex></regex>
+                <Alias isActive="yes" isFolder="no">
+                    <name>changing color room</name>
+                    <script>local colors,r,g,b,currentID
+colors=wotmudmapper.Colors
+currentID=wotmudmapper.currentID
+if colors[matches[2]] then
+	setRoomEnv(currentID,colors[matches[2]][4])
+	cecho(&quot;Color of the room changed!\n&quot;)
+	if colors[matches[2]]==colors[&quot;smob&quot;] then
+		setRoomChar(currentID,&quot;S&quot;)
+	else
+		setRoomChar(currentID,&quot;_&quot;)
+	end
+else
+	cecho(&quot;&lt;red&gt;Error&lt;white&gt;! No such enviroment color...\n&quot;)
+end
+
+
+
+</script>
+                    <command></command>
+                    <packageName></packageName>
+                    <regex>^ccr (.*)$</regex>
+                </Alias>
+                <Alias isActive="yes" isFolder="no">
+                    <name>change mapping enviroment</name>
+                    <script>local colors=wotmudmapper.Colors
+if colors[matches[2]] then
+	wotmudmapper.enviromentColor=colors[matches[2]][4]
+	cecho(&quot;The new rooms will be of &lt;gold&gt;&quot;..matches[2]..&quot;&lt;white&gt; type\n&quot;)
+else
+	cecho(&quot;&lt;red&gt;Error&lt;white&gt;! No such enviroment color...\n&quot;)
+end
+
+	</script>
+                    <command></command>
+                    <packageName></packageName>
+                    <regex>^cme (.*)$</regex>
+                </Alias>
+                <Alias isActive="yes" isFolder="no">
+                    <name>color legend</name>
+                    <script>local colors=wotmudmapper.Colors
+local categories=wotmudmapper.ColorCategories
+
+cecho(&quot;&lt;LightGoldenrod&gt;Map Legend\n&quot;)
+for k,v in pairs(categories) do
+	cecho(&quot; &quot;	..v..&quot;:\n&quot;)
+	for i,j in pairs(colors) do
+		if v==j[6] then
+			cecho(&quot;      &lt;&quot;..j[5]..&quot;&gt;&quot;..i..&quot;\n&quot;)
+		end
+	end
+end
+			</script>
+                    <command></command>
+                    <packageName></packageName>
+                    <regex>^colorlegend$</regex>
+                </Alias>
+                <Alias isActive="yes" isFolder="no">
+                    <name>resetColorCategories</name>
+                    <script>-----Will reset the Categories of the colors to their default values!------
+---------------------------------------------------------
+wotmudmapper.ColorCategories=nil
+wotmudmapper:DefaultColorCategories()</script>
+                    <command></command>
+                    <packageName></packageName>
+                    <regex>^resetColorCategories$</regex>
+                </Alias>
+                <Alias isActive="yes" isFolder="no">
+                    <name>resetColors</name>
+                    <script>-----Will reset the colors and the room types to their default values!------
+---------------------------------------------------------
+wotmudmapper.Colors=nil
+wotmudmapper:DefaultColors()</script>
+                    <command></command>
+                    <packageName></packageName>
+                    <regex>^resetColors$</regex>
+                </Alias>
+            </AliasGroup>
+            <Alias isActive="yes" isFolder="no">
+                <name>messages on/off</name>
+                <script>local messages=wotmudmapper.messages
+
+
+if messages==true then
+	wotmudmapper.messages=false
+	cecho(&quot;\nHelp messages are &lt;red&gt;OFF&lt;white&gt;!&quot;)
+else
+	wotmudmapper.messages=true
+	cecho(&quot;\nHelp messages are &lt;green&gt;ON&lt;white&gt;!&quot;)
+
+end</script>
+                <command></command>
+                <packageName></packageName>
+                <regex>^mapmessages$</regex>
+            </Alias>
+            <AliasGroup isActive="yes" isFolder="yes">
+                <name>Areas</name>
+                <script></script>
+                <command></command>
+                <packageName></packageName>
+                <regex></regex>
+                <Alias isActive="yes" isFolder="no">
+                    <name>Rename 101 main --Only for those who mapped before v0.6</name>
+                    <script>setAreaName(101,&quot;main&quot;)
+echo(&quot;Area renamed to main:&quot;)</script>
+                    <command></command>
+                    <packageName></packageName>
+                    <regex>^rename101$</regex>
+                </Alias>
+                <Alias isActive="yes" isFolder="no">
+                    <name>Create a new Area</name>
+                    <script>local areaID=addAreaName(matches[2])
+if areaID~=-1 then
+	cecho(&quot;The new area has created with name:&lt;gold&gt;&quot;..matches[2]..&quot;&lt;white&gt;!\n&quot;)
+else
+	cecho(&quot;Area already exists!\n&quot;)
+end</script>
+                    <command></command>
+                    <packageName></packageName>
+                    <regex>^createarea (.*)$</regex>
+                </Alias>
+                <Alias isActive="yes" isFolder="no">
+                    <name>Deleting Area</name>
+                    <script>local deleted
+for k,v in pairs(getAreaTable()) do
+	if k==matches[2] then
+		deleteArea(v)
+		echo(&quot;The area has been deleted. All its rooms, if any, have been deleted\n&quot;)
+		 deleted=true
+		break
+	end
+end
+if not deleted then
+	echo(&quot;Area not found\n&quot;)
+end</script>
+                    <command></command>
+                    <packageName></packageName>
+                    <regex>^areadelete (.*)</regex>
+                </Alias>
+                <Alias isActive="yes" isFolder="no">
+                    <name>showAreas</name>
+                    <script>local areas=getAreaTable()
+for k,v in pairs(areas) do
+	if k~=&quot;0&quot; then
+		cecho(&quot;name:&lt;gold&gt;&quot;..k..&quot;&lt;white&gt; key:&lt;gold&gt;&quot;..v..&quot;&lt;white&gt;\n&quot;)
+	end
+end</script>
+                    <command></command>
+                    <packageName></packageName>
+                    <regex>^arealist$</regex>
+                </Alias>
+                <Alias isActive="yes" isFolder="no">
+                    <name>createroom at areaname</name>
+                    <script>local areaID=addAreaName(matches[2])
+local exits=wotmudmapper.exits
+if areaID~=-1 then
+	wotmudmapper.currentID=wotmudmapper:CreateRoom(0,0,0,nil,areaID)
+	echo(&quot;\nDone!&quot;)
+	centerview(wotmudmapper.currentID)
+else
+	echo(&quot;Area name already exists&quot;)
+end
+</script>
+                    <command></command>
+                    <packageName></packageName>
+                    <regex>^createroom (.*)$</regex>
+                </Alias>
+                <Alias isActive="yes" isFolder="no">
+                    <name>move room at area</name>
+                    <script>local currentID=wotmudmapper.currentID
+local moved=false
+
+if currentID~=nil then
+
+	for k,v in pairs(getAreaTable()) do
+		if k==matches[2] then
+			setRoomArea(currentID, v)
+			cecho(&quot;Room moved to area:&lt;gold&gt;&quot;..k..&quot;&lt;white&gt;!\n&quot;)
+			moved=true
+			centerview(currentID)
+			break
+		end
+	end
+else
+	echo(&quot;You cannot move an unknown room!\n&quot;)
+end
+if moved==false then
+	echo(&quot;Area not found&quot;)
+end
+
+</script>
+                    <command></command>
+                    <packageName></packageName>
+                    <regex>^moveatarea (.*)$</regex>
+                </Alias>
+                <Alias isActive="yes" isFolder="no">
+                    <name>rename Area</name>
+                    <script>--This function has to give the AreaID. It would be hard to make the alias recognise how many names the areas can propably have.
+
+local renamed
+for k,v in pairs(getAreaTable()) do
+	if v==tonumber(matches[2]) then
+		setAreaName(v,matches[3])
+		cecho(&quot;The area has been renamed to:&lt;gold&gt;&quot;..matches[3]..&quot;&lt;white&gt;!\n&quot;)
+		renamed=true
+		break
+	end
+end
+if not renamed then
+	echo(&quot;Area not found\n&quot;)
+end</script>
+                    <command></command>
+                    <packageName></packageName>
+                    <regex>^renamearea\s+(\d+)\s+(.+)$</regex>
+                </Alias>
+                <Alias isActive="yes" isFolder="no">
+                    <name>^createroom</name>
+                    <script>local exits=wotmudmapper.exits
+if areaID~=-1 then
+	wotmudmapper.currentID=wotmudmapper:CreateRoom(0,0,0,nil,areaID)
+	echo(&quot;\nDone!&quot;)
+	centerview(wotmudmapper.currentID)
+else
+	echo(&quot;Area name already exists&quot;)
+end
+</script>
+                    <command></command>
+                    <packageName></packageName>
+                    <regex>^createroom$</regex>
+                </Alias>
+            </AliasGroup>
+            <Alias isActive="yes" isFolder="no">
+                <name>force new room</name>
+                <script>--Will create the next room if it is to link with existing room, it will create a new room instead. It will go off after that
+wotmudmapper.forceroom=true
+echo(&quot;forcing new room...\n&quot;)
+
+</script>
+                <command></command>
+                <packageName></packageName>
+                <regex>^forceroom$</regex>
+            </Alias>
+            <Alias isActive="yes" isFolder="no">
+                <name>creating doors</name>
+                <script>---Syntax: setdoor direction doorname
+local direction=matches[2]
+local doorname=matches[3]
+local currentID=wotmudmapper.currentID
+if direction==&quot;n&quot; or direction==&quot;s&quot; or direction==&quot;w&quot; or direction==&quot;e&quot; or direction==&quot;u&quot; or direction==&quot;d&quot; then
+	wotmudmapper:createdoors(currentID,direction,1,doorname)
+end</script>
+                <command></command>
+                <packageName></packageName>
+                <regex>^sd\s+(\S{1})\s(\S+)$</regex>
+            </Alias>
+            <Alias isActive="yes" isFolder="no">
+                <name>delete doors</name>
+                <script>--syntax deletedoor direction
+local currentID=wotmudmapper.currentID
+local direction=matches[2]
+if direction==&quot;n&quot; or direction==&quot;s&quot; or direction==&quot;w&quot; or direction==&quot;e&quot; or direction==&quot;u&quot; or direction==&quot;d&quot; then
+	wotmudmapper:createdoors(currentID,direction,0,&quot;&quot;)
+	echo(&quot;Door deleted succesfully!\n&quot;)
+end</script>
+                <command></command>
+                <packageName></packageName>
+                <regex>^deletedoor\s+(\S{1})</regex>
+            </Alias>
+            <Alias isActive="yes" isFolder="no">
+                <name>creating hidden doors</name>
+                <script>---Syntax: shd direction doorname
+local direction=matches[2]
+local doorname=matches[3]
+local currentID=wotmudmapper.currentID
+if direction==&quot;n&quot; or direction==&quot;s&quot; or direction==&quot;w&quot; or direction==&quot;e&quot; or direction==&quot;u&quot; or direction==&quot;d&quot; then
+	wotmudmapper:createdoors(currentID,direction,2,doorname)
+end</script>
+                <command></command>
+                <packageName></packageName>
+                <regex>^shd\s+(\S{1})\s(\S+)$</regex>
+            </Alias>
+        </AliasGroup>
+    </AliasPackage>
+    <ActionPackage/>
+    <ScriptPackage>
+        <ScriptGroup isActive="yes" isFolder="yes">
+            <name>door script</name>
+            <packageName></packageName>
+            <script>-------------------------------------------------
+--         Put your Lua functions here.        --
+--                                             --
+-- Note that you can also use external Scripts --
+-------------------------------------------------
+-- Variables needed to store doors and toggle autodoor
+doorScript = {doors, autodoor}
+doorScript.doors = { }
+doorScript.autodoor = false</script>
+            <eventHandlerList/>
+            <Script isActive="yes" isFolder="no">
+                <name>set door</name>
+                <packageName></packageName>
+                <script>-------------------------------------------------
+--         Put your Lua functions here.        --
+--                                             --
+-- Note that you can also use external Scripts --
+-------------------------------------------------
+
+
+-- Set the door based on either name and direction captured by the mapper,
+-- or by the door number manually assigned by aliases sd1 and sd2.
+function doorScript.setMyDoor(door, arg1, arg2)
+	if arg1 ~= nil then
+		doorScript.doors[arg1] = door
+	end
+	if arg2 ~= nil then
+		doorScript.doors[arg2] = door
+	end
+end</script>
+                <eventHandlerList/>
+            </Script>
+            <Script isActive="yes" isFolder="no">
+                <name>toggle autodoor</name>
+                <packageName></packageName>
+                <script>-------------------------------------------------
+--         Put your Lua functions here.        --
+--                                             --
+-- Note that you can also use external Scripts --
+-------------------------------------------------
+function doorScript.toggleAutodoor()
+	if doorScript.autodoor == false then
+		cecho(&quot;&lt;light_blue&gt;Automatic door assignment turned on. Press ctrl+direction to open, alt+direction to close.\n&quot;)
+		doorScript.autodoor = true
+	else
+		cecho(&quot;&lt;light_blue&gt;Automatic door assignment turned off.\n&quot;)
+		doorScript.autodoor = false
+	end
+end</script>
+                <eventHandlerList/>
+            </Script>
+        </ScriptGroup>
+        <ScriptGroup isActive="yes" isFolder="yes">
+            <name>mapper</name>
+            <packageName>wotmapper v2.2</packageName>
+            <script>-------------------------------------------------
+--       initialising variables                --
+-------------------------------------------------
+mudlet = mudlet or {}; mudlet.mapper_script = true
+if not wotmudmapper then
+	wotmudmapper={}
+end
+local main = Geyser.Container:new({x=0,y=0,width=&quot;100%&quot;,height=&quot;100%&quot;,name=&quot;mapper container&quot;})
+
+local mapper = Geyser.Mapper:new({
+  name = &quot;mapper&quot;,
+  x = &quot;69%&quot;, y = 0, -- edit here if you want to move it
+  width = &quot;30%&quot;, height = &quot;80%&quot;
+}, main)
+wotmudmapper.forceroom=false
+wotmudmapper.mapCommand={}
+wotmudmapper.bothways=true
+wotmudmapper.autoconnect=true
+List={}
+wotmudmapper.mapping=true
+wotmudmapper.messages=false
+wotmudmapper.currentID=nil
+wotmudmapper.enviromentColor=22
+if not wotmudmapper.exitmap then
+  wotmudmapper.exitmap= {
+  N = 1,
+  E = 4,
+  W = 5,
+  S = 6,
+  U = 9,
+  D = 10,
+  [1] = &quot;north&quot;,
+  [4] = &quot;east&quot;,
+  [5] = &quot;west&quot;,
+  [6] = &quot;south&quot;,
+  [9] = &quot;up&quot;,
+  [10] = &quot;down&quot;
+}
+end
+
+function List:new()
+	return {first = 0, last = -1}
+end
+wotmudmapper.queue=List:new()
+
+function List:pushright(list,value)
+local last = list.last + 1
+    list.last = last
+    list[last] = value
+end
+
+function List:popleft(list)
+	local first = list.first
+ 	local value = list[first]
+   list[first] = nil        -- to allow garbage collection
+  	list.first = first + 1
+	if first &gt;= list.last then
+		wotmudmapper.queue=List:new()
+	end
+   return value
+end
+
+function List:checkleftvalue(list)
+	local first=list.first
+	local value=list[first]
+	return value
+end</script>
+            <eventHandlerList/>
+            <Script isActive="yes" isFolder="no">
+                <name>create a room</name>
+                <packageName></packageName>
+                <script>function wotmudmapper:CreateRoom(x,y,z,exits,areaID)
+	local newID,tempareaID,exitmap,envID
+	envID=wotmudmapper.enviromentColor
+	exitmap=wotmudmapper.exitmap
+	newID=	createRoomID()
+	addRoom(newID)
+	setRoomUserData(newID,&quot;description&quot;,wotmudmapper.roomdesc)
+	setRoomName(newID,wotmudmapper.RoomName)
+	setRoomCoordinates(newID,x,y,z)
+ 	setRoomArea(newID,areaID)
+	setRoomEnv(newID, envID)
+
+	local i=1
+	if exits~={} and exits~=nil then
+		while exits[i] do
+			setExitStub(newID,exitmap[exits[i]],true)
+			i=i+1
+		end
+	end
+	return newID
+end
+	</script>
+                <eventHandlerList/>
+            </Script>
+            <Script isActive="yes" isFolder="no">
+                <name>lookingAtRoom</name>
+                <packageName></packageName>
+                <script>function wotmudmapper:isRoom(tempname)
+
+local rooms,k,v,currentID
+desc=wotmudmapper.roomdesc
+rooms=searchRoom(tempname)
+if rooms~={} then
+		for k,v in pairs(rooms) do
+			if getRoomUserData(k,&quot;description&quot;)==desc and getRoomName(k)==tempname then
+				currentID=k
+				centerview(currentID)
+				break
+			end
+		end
+else
+		echo(&quot;\n&lt;gold&gt;Room not known&quot;)
+		currentID=nil
+end
+
+return currentID
+end
+
+</script>
+                <eventHandlerList/>
+            </Script>
+            <Script isActive="yes" isFolder="no">
+                <name>linking new room</name>
+                <packageName></packageName>
+                <script>function wotmudmapper:linkRoom(secRoomID,firRoomID,direction,exits)
+local bothways
+bothways=wotmudmapper.bothways
+--placeholder for taking the direction
+
+if direction==&quot;N&quot; or direction==&quot;n&quot; then
+	setExit(firRoomID,secRoomID,1)
+	if bothways==true then ---edw prepei na mpei kai o elegxos me ta exits tou allou room.
+		for k,v in pairs(exits) do
+			if v==&quot;S&quot; then
+				setExit(secRoomID,firRoomID,6)
+				echo(v)
+				break
+			end
+		end
+	end
+elseif direction==&quot;D&quot; or direction==&quot;d&quot; then
+	setExit(firRoomID,secRoomID,10)
+	if bothways==true then
+		for k,v in pairs(exits) do
+			if v==&quot;U&quot; then
+				echo(v)
+				setExit(secRoomID,firRoomID,9)
+				break
+			end
+		end
+	end
+elseif direction==&quot;s&quot; or direction==&quot;S&quot; then
+	setExit(firRoomID,secRoomID,6)
+	if bothways==true then
+		for k,v in pairs(exits) do
+			if v==&quot;N&quot; then
+				echo(v)
+
+				setExit(secRoomID,firRoomID,1)
+				break
+			end
+		end
+	end
+elseif direction==&quot;e&quot; or direction==&quot;E&quot; then
+	setExit(firRoomID,secRoomID,4)
+	if bothways==true then
+		for k,v in pairs(exits) do
+			if v==&quot;W&quot; then
+				echo(v)
+
+				setExit(secRoomID,firRoomID,5)
+				break
+			end
+		end
+	end
+elseif direction==&quot;w&quot; or direction==&quot;W&quot; then
+	setExit(firRoomID,secRoomID,5)
+	if bothways==true then
+		for k,v in pairs(exits) do
+			if v==&quot;E&quot; then
+				echo(v)
+
+				setExit(secRoomID,firRoomID,4)
+				break
+			end
+		end
+	end
+elseif direction==&quot;u&quot; or direction==&quot;U&quot; then
+	setExit(firRoomID,secRoomID,9)
+	if bothways==true then
+		for k,v in pairs(exits) do
+			if v==&quot;D&quot; then
+				echo(v)
+
+				setExit(secRoomID,firRoomID,10)
+				break
+			end
+		end
+	end
+end
+centerview(secRoomID)
+end</script>
+                <eventHandlerList/>
+            </Script>
+            <Script isActive="yes" isFolder="no">
+                <name>set Offset</name>
+                <packageName></packageName>
+                <script>function wotmudmapper:setCoordinatesOffset(currentRoom,mapCommand)
+local x,y,z
+
+x,y,z=getRoomCoordinates(currentRoom)
+if mapCommand==&quot;n&quot; or mapCommand==&quot;N&quot; then
+	y=y+3
+elseif mapCommand==&quot;s&quot; or mapCommand==&quot;S&quot; then
+	y=y-3
+elseif mapCommand==&quot;w&quot; or mapCommand==&quot;W&quot;then
+	x=x-3
+elseif mapCommand==&quot;e&quot; or mapCommand==&quot;E&quot; then
+	x=x+3
+elseif mapCommand==&quot;u&quot; or mapCommand==&quot;U&quot; then
+	z=z+3
+elseif mapCommand==&quot;d&quot; or mapCommand==&quot;D&quot; then
+	z=z-3
+end
+return x,y,z
+end</script>
+                <eventHandlerList/>
+            </Script>
+            <Script isActive="yes" isFolder="no">
+                <name>trackingmovement</name>
+                <packageName></packageName>
+                <script>function trackingmovement(event,command)
+	if checkingLook(command) or checkingFlee(command) or  checkingMovement(command)  then
+		List:pushright(wotmudmapper.queue,command)
+	end
+end
+</script>
+                <eventHandlerList>
+                    <string>sysDataSendRequest</string>
+                </eventHandlerList>
+            </Script>
+            <Script isActive="yes" isFolder="no">
+                <name>setting Room Colors</name>
+                <packageName></packageName>
+                <script>local r,g,b
+function wotmudmapper:DefaultColorCategories()
+	wotmudmapper.ColorCategories={}
+	wotmudmapper.ColorCategories={&quot;enviroment&quot;,&quot;town services&quot;,&quot;practice&quot;,&quot;pk related&quot;,&quot;mobs&quot;}
+end
+
+function wotmudmapper:DefaultColors()
+	wotmudmapper.Colors={}
+	echo(&quot;\nColors set on their default values\n&quot;)
+	r,g,b=unpack(color_table.gray)
+	echo(&quot;unpacked gray\n&quot;)
+	wotmudmapper.Colors[&quot;inside&quot;]={r,g,b,17,&quot;gray&quot;,&quot;enviroment&quot;}
+	setCustomEnvColor(17,r,g,b,255)
+
+	if color_table[&quot;sienna&quot;] then
+		r,g,b=unpack(color_table.sienna)
+		echo(&quot;unpacked sienna\n&quot;)
+		wotmudmapper.Colors[&quot;road&quot;]={r,g,b,18,&quot;sienna&quot;,&quot;enviroment&quot;}
+		setCustomEnvColor(18,r,g,b,255)
+	end
+
+	if color_table[&quot;ivory&quot;] then
+	r,g,b=unpack(color_table.ivory)
+	echo(&quot;unpacked ivory\n&quot;)
+	wotmudmapper.Colors[&quot;horses&quot;]={r,g,b,19,&quot;ivory&quot;,&quot;mobs&quot;}
+	setCustomEnvColor(19,r,g,b,255)
+	end
+
+	if color_table[&quot;deep_pink&quot;] then
+	r,g,b=unpack(color_table.deep_pink)
+	echo(&quot;unpacked deep_pink\n&quot;)
+	wotmudmapper.Colors[&quot;supplies&quot;]={r,g,b,20,&quot;deep_pink&quot;,&quot;supplies&quot;}
+	setCustomEnvColor(20,r,g,b,255)
+	end
+
+	if color_table[&quot;orange&quot;] then
+
+	r,g,b=unpack(color_table.orange)
+	echo(&quot;unpacked Orange\n&quot;)
+	wotmudmapper.Colors[&quot;armorer&quot;]={r,g,b,21,&quot;orange&quot;,&quot;town services&quot;}
+	setCustomEnvColor(21,r,g,b,255)
+
+	end
+
+	if color_table[&quot;forest_green&quot;] then
+	r,g,b=unpack(color_table.forest_green)
+	echo(&quot;unpacked forest_green\n&quot;)
+	wotmudmapper.Colors[&quot;wilderness&quot;]={r,g,b,22,&quot;forest_green&quot;,&quot;enviroment&quot;}
+	setCustomEnvColor(22,r,g,b,255)
+	end
+
+	if color_table[&quot;red&quot;] then
+	r,g,b=unpack(color_table.red)
+	echo(&quot;unpacked red\n&quot;)
+	wotmudmapper.Colors[&quot;weaponsmith&quot;]={r,g,b,23,&quot;red&quot;,&quot;town services&quot;}
+	setCustomEnvColor(23,r,g,b,255)
+	wotmudmapper.Colors[&quot;hard&quot;]={r,g,b,33,&quot;red&quot;,&quot;mobs&quot;}
+	setCustomEnvColor(33,r,g,b,255)
+
+	end
+
+	if color_table[&quot;dark_goldenrod&quot;] then
+	r,g,b=unpack(color_table.dark_goldenrod)
+	echo(&quot;unpacked dark_goldenrod\n&quot;)
+	wotmudmapper.Colors[&quot;blacksmith&quot;]={r,g,b,24,&quot;goldenrod&quot;,&quot;town services&quot;}
+	setCustomEnvColor(24,r,g,b,255)
+	end
+
+	if color_table[&quot;LightSeaGreen&quot;] then
+	r,g,b=unpack(color_table.LightSeaGreen)
+	echo(&quot;unpacked LightSeaGreen\n&quot;)
+	wotmudmapper.Colors[&quot;drink&quot;]={r,g,b,25,&quot;LightSeaGreen&quot;,&quot;enviroment&quot;}
+	setCustomEnvColor(25,r,g,b,255)
+	end
+
+	if color_table[&quot;blue&quot;]	then
+	r,g,b=unpack(color_table.blue)
+	echo(&quot;unpacked blue\n&quot;)
+	wotmudmapper.Colors[&quot;sea&quot;]={r,g,b,26,&quot;blue&quot;,&quot;enviroment&quot;}
+	setCustomEnvColor(26,r,g,b,255)
+	end
+
+	if color_table[&quot;khaki&quot;] then
+	r,g,b=unpack(color_table.khaki)
+	wotmudmapper.Colors[&quot;nohide&quot;]={r,g,b,27,&quot;khaki&quot;,&quot;pk related&quot;}
+	echo(&quot;unpacked khaki\n&quot;)
+	setCustomEnvColor(27,r,g,b,255)
+	end
+
+
+	if color_table[&quot;yellow&quot;] then
+	r,g,b=unpack(color_table.yellow)
+	wotmudmapper.Colors[&quot;bank&quot;]={r,g,b,29,&quot;yellow&quot;,&quot;town services&quot;}
+	echo(&quot;unpacked bank\n&quot;)
+	setCustomEnvColor(29,r,g,b,255)
+	end
+
+
+	if color_table[&quot;dark_green&quot;] then
+	r,g,b=unpack(color_table.DarkGreen)
+	echo(&quot;unpacked dark_green\n&quot;)
+	wotmudmapper.Colors[&quot;trees&quot;]={r,g,b,28,&quot;dark_green&quot;,&quot;mobs&quot;}
+	setCustomEnvColor(28,r,g,b,255)
+	end
+
+
+	if color_table[&quot;firebrick&quot;] then
+	r,g,b=unpack(color_table.firebrick)
+	echo(&quot;unpacked firebrick\n&quot;)
+	wotmudmapper.Colors[&quot;warrior&quot;]={r,g,b,30,&quot;firebrick&quot;,&quot;practice&quot;}
+	setCustomEnvColor(30,r,g,b,255)
+	end
+
+
+	if color_table[&quot;DarkSlateGray&quot;] then
+	r,g,b=unpack(color_table.DarkSlateGray)
+	echo(&quot;unpacked DarkSlateGray\n&quot;)
+	wotmudmapper.Colors[&quot;rogue&quot;]={r,g,b,31,&quot;DarkSlateGray&quot;,&quot;practice&quot;}
+	setCustomEnvColor(31,r,g,b,255)
+	end
+
+	if color_table[&quot;yellow_green&quot;] then
+	r,g,b=unpack(color_table.yellow_green)
+	echo(&quot;unpacked yellow_green\n&quot;)
+	wotmudmapper.Colors[&quot;hunter&quot;]={r,g,b,32,&quot;yellow_green&quot;,&quot;practice&quot;}
+	setCustomEnvColor(32,r,g,b,255)
+	end
+
+	if color_table[&quot;a_green&quot;] then
+	r,g,b=unpack(color_table.a_green)
+	echo(&quot;unpacked a_green\n&quot;)
+	wotmudmapper.Colors[&quot;inn&quot;]={r,g,b,34,&quot;a_green&quot;,&quot;town services&quot;}
+	setCustomEnvColor(34,r,g,b,255)
+	end
+
+	if color_table[&quot;tomato&quot;] then
+	r,g,b=unpack(color_table.tomato)
+	echo(&quot;unpacked tomato\n&quot;)
+	wotmudmapper.Colors[&quot;clothier&quot;]={r,g,b,35,&quot;tomato&quot;,&quot;town services&quot;}
+	setCustomEnvColor(35,r,g,b,255)
+	end
+
+	if color_table[&quot;deep_pink&quot;] then
+	r,g,b=unpack(color_table.deep_pink)
+	echo(&quot;unpacked deep_pink\n&quot;)
+	wotmudmapper.Colors[&quot;food&quot;]={r,g,b,36,&quot;deep_pink&quot;,&quot;enviroment&quot;}
+	setCustomEnvColor(36,r,g,b,255)
+	end
+
+	if color_table[&quot;green&quot;] then
+	r,g,b=unpack(color_table.green)
+	echo(&quot;unpacked green\n&quot;)
+	wotmudmapper.Colors[&quot;inn&quot;]={r,g,b,37,&quot;green&quot;,&quot;town services&quot;}
+	setCustomEnvColor(37,r,g,b,255)
+	end
+
+	if color_table[&quot;white&quot;] then
+	r,g,b=unpack(color_table.white)
+	echo(&quot;unpacked white\n&quot;)
+	wotmudmapper.Colors[&quot;smob&quot;]={r,g,b,38,&quot;white&quot;,&quot;mobs&quot;}
+	setCustomEnvColor(38,r,g,b,255)
+	end
+
+
+	if color_table[&quot;dark_violet&quot;] then
+	r,g,b=unpack(color_table.dark_violet)
+	echo(&quot;unpacked dark_violet\n&quot;)
+	wotmudmapper.Colors[&quot;grocer&quot;]={r,g,b,39,&quot;dark_violet&quot;,&quot;town services&quot;}
+	setCustomEnvColor(39,r,g,b,255)
+	end
+
+	if color_table[&quot;blue_violet&quot;] then
+	r,g,b=unpack(color_table.blue_violet)
+	echo(&quot;unpacked blue_violet\n&quot;)
+	wotmudmapper.Colors[&quot;swamp&quot;]={r,g,b,40,&quot;dark_violet&quot;,&quot;enviroment&quot;}
+	setCustomEnvColor(40,r,g,b,255)
+	end
+end
+
+if wotmudmapper.Colors==nil then
+	wotmudmapper:DefaultColors()
+end
+if wotmudmapper.ColorCategories==nil then
+	wotmudmapper:DefaultColorCategories()
+	echo(&quot;Color Categories for the Map Legend loaded\n&quot;)
+end
+
+
+</script>
+                <eventHandlerList/>
+            </Script>
+            <Script isActive="yes" isFolder="no">
+                <name>creating doors</name>
+                <packageName></packageName>
+                <script>function wotmudmapper:createdoors(currentID,direction,status,doorname)
+	if direction~=&quot;d&quot; and direction~=&quot;u&quot; then
+		setDoor(currentID,direction,status)
+	end
+	setRoomUserData(currentID,direction,doorname)
+	if status~=0 then
+		cecho(&quot;\nA new door set at direction &quot;..direction..&quot;, named:&quot;..doorname..&quot;\n&quot;)
+	end
+end</script>
+                <eventHandlerList/>
+            </Script>
+            <Script isActive="yes" isFolder="no">
+                <name>lookingfordoors</name>
+                <packageName></packageName>
+                <script>function lookingfordoors(event,command)
+
+if command==&quot;l east&quot; or command==&quot;l e&quot; or command==&quot;search e&quot; or command==&quot;search east&quot; then
+	wotmudmapper.door=&quot;e&quot;
+elseif command==&quot;l west&quot; or command==&quot;l w&quot; or command==&quot;search w&quot; or command==&quot;search west&quot;then
+	wotmudmapper.door=&quot;w&quot;
+elseif command==&quot;l south&quot; or command==&quot;l s&quot; or command==&quot;search s&quot; or command==&quot;search south&quot;then
+	wotmudmapper.door=&quot;s&quot;
+elseif command==&quot;l north&quot; or command==&quot;l n&quot; or command==&quot;search n&quot; or command==&quot;search north&quot;then
+	wotmudmapper.door=&quot;n&quot;
+elseif command==&quot;l up&quot; or command==&quot;l u&quot; or command==&quot;search u&quot; or command==&quot;search up&quot; then
+	wotmudmapper.door=&quot;u&quot;
+elseif command==&quot;l down&quot; or command==&quot;l d&quot; or command==&quot;search d&quot; or command==&quot;search down&quot;then
+	wotmudmapper.door=&quot;d&quot;
+end
+end</script>
+                <eventHandlerList>
+                    <string>sysDataSendRequest</string>
+                </eventHandlerList>
+            </Script>
+            <Script isActive="yes" isFolder="no">
+                <name>OnsysConnectionEvent</name>
+                <packageName></packageName>
+                <script>-------------------------------------------------
+--         Put your Lua functions here.        --
+--                                             --
+-- Note that you can also use external Scripts --
+-------------------------------------------------
+
+function OnsysConnectionEvent(event)
+	echo(&quot;queue resetted&quot;)
+	wotmudmapper.queue=List:new()
+end</script>
+                <eventHandlerList>
+                    <string>sysConnectionEvent</string>
+                </eventHandlerList>
+            </Script>
+            <Script isActive="yes" isFolder="no">
+                <name>check if neighbouring room on flee</name>
+                <packageName></packageName>
+                <script>function wotmudmapper:findingRoomAfterFlee(name,description,exits,currexits)
+
+local matching={}  			---initialiasing table
+local matches=0					---initialising counter
+local currentID
+for k,v in pairs(exits)  do
+	if name==getRoomName(v) and description==getRoomUserData(v,&quot;description&quot;) then --if the
+		matches=matches+1
+		matching[matches]=v
+	end
+end
+currentID=wotmudmapper:checkingExits(matches,matching,exits,currexits)
+return currentID
+end
+
+
+function wotmudmapper:checkingExits(matches,matching,currexits,exits)
+local i,currentmatch,matched,currentID
+if matches==1 then
+	currentID=matching[1]
+	centerview(currentID)
+	echo(currentID)
+	return currentID
+elseif matches&gt;1 then
+	i=1
+	matched=matches
+	while matching[i] do
+		echo(&quot;test2&quot;)
+		currentmatch=false
+		exits=getRoomExits(matching[i])
+		for k,v in pairs(exits) do
+			echo(k)
+			local e=0                ---prepei na kanei to anapodo, dhladh na checkarei an uparxei kapoio iso.
+			while currexits[e] do
+				if v==string.lower(e) then
+					currentmatch=true
+				end
+				e=e+1
+			end
+		end
+		if currentmatch==true then
+			echo(&quot;bloo&quot;)
+			currentID=matching[i]
+			echo(&quot;doh&quot;)
+		else
+			matched=matched-1
+		end
+		i=i+1
+	end
+	if matched==1 then
+		echo(currentID)
+		centerview(currentID)
+		return currentID
+	elseif matched&gt;1 then
+		echo(&quot;&lt;green&gt;\Mmore than one matches!&quot;)
+		return nil
+	else
+		echo(&quot;\nNo room found&quot;)
+		return nil
+	end
+end
+end
+
+
+		</script>
+                <eventHandlerList/>
+            </Script>
+            <Script isActive="yes" isFolder="no">
+                <name>check if neighbouring room on direction</name>
+                <packageName></packageName>
+                <script>function wotmudmapper:IsNearRoom(mapCommand,currID,description,currExits,name)
+
+local k,v,i,sk,sv,value
+local tempDesc
+if  currID~=nil then						--if you are not lost
+	if currExits~={} and currExits~=nil then
+		for k,v in pairs(currExits)  do						-- search for every linked Room with the current room
+			if string.find(k,string.lower(mapCommand))  and roomExists(v)	then
+				if name==getRoomName(v) and description==getRoomUserData(v,&quot;description&quot;) then
+					currID=v
+					cecho(&quot;&lt;red&gt;&quot;..currID)
+					centerview(currID)
+					value=true
+					if wotmudmapper.messages==true then
+						cecho(&quot;\nRoom Found!\n&quot;)
+					end
+				end
+			end
+		end
+	wotmudmapper.currentID=currID
+	end
+else
+end
+return value
+end
+</script>
+                <eventHandlerList/>
+            </Script>
+            <Script isActive="yes" isFolder="no">
+                <name>Check if command is flee</name>
+                <packageName></packageName>
+                <script>-------------------------------------------------
+--         Put your Lua functions here.        --
+--                                             --
+-- Note that you can also use external Scripts --
+-------------------------------------------------
+function checkingFlee(Command)
+	if Command~=nil then
+		Command=string.lower(Command)
+	end
+
+
+	if Command==&quot;f&quot; or Command==&quot;fl&quot; or Command==&quot;fle&quot; or Command==&quot;flee&quot; then
+		return true
+	else
+		return false
+	end
+end</script>
+                <eventHandlerList/>
+            </Script>
+            <Script isActive="yes" isFolder="no">
+                <name>Check if command is look</name>
+                <packageName></packageName>
+                <script>-------------------------------------------------
+--         Put your Lua functions here.        --
+--                                             --
+-- Note that you can also use external Scripts --
+-------------------------------------------------
+function checkingLook(Command)
+	if Command~=nil then
+		Command=string.lower(Command)
+	end
+
+	if Command==&quot;l&quot; or Command==&quot;look&quot; or Command==&quot;loo&quot; or Command==&quot;lo&quot; then
+		return true
+	else
+		return false
+	end
+end</script>
+                <eventHandlerList/>
+            </Script>
+            <Script isActive="yes" isFolder="no">
+                <name>Check if command is movement</name>
+                <packageName></packageName>
+                <script>function checkingMovement(Command)
+	if Command~=nil then
+		Command=string.lower(Command)
+	end
+
+	if Command==&quot;n&quot; or Command==&quot;north&quot; or Command==&quot;no&quot; or Command==&quot;nor&quot; or Command==&quot;nort&quot; then
+		return true
+	elseif Command==&quot;s&quot; or Command==&quot;so&quot; or Command==&quot;sou&quot; or Command==&quot;sout&quot; or Command==&quot;south&quot; then
+		return true
+	elseif	 Command==&quot;w&quot; or Command==&quot;we&quot; or Command==&quot;wes&quot; or Command==&quot;west&quot; then
+		return true
+	elseif Command==&quot;e&quot; or Command==&quot;ea&quot; or Command==&quot;eas&quot; or Command==&quot;east&quot; then
+		return true
+	elseif Command==&quot;d&quot; or Command==&quot;do&quot; or Command==&quot;dow&quot; or Command==&quot;down&quot; then
+		return true
+	elseif Command==&quot;u&quot; or Command==&quot;up&quot; then
+		return true
+	else
+		return false
+	end
+end</script>
+                <eventHandlerList/>
+            </Script>
+        </ScriptGroup>
+    </ScriptPackage>
+    <KeyPackage>
+        <KeyGroup isActive="yes" isFolder="yes">
+            <name>door script</name>
+            <packageName></packageName>
+            <script></script>
+            <command></command>
+            <keyCode>-1</keyCode>
+            <keyModifier>-1</keyModifier>
+            <Key isActive="yes" isFolder="no">
+                <name>open north door</name>
+                <packageName></packageName>
+                <script>send(&quot;open &quot; .. doorScript.doors[&quot;north&quot;])</script>
+                <command></command>
+                <keyCode>56</keyCode>
+                <keyModifier>603979776</keyModifier>
+            </Key>
+            <Key isActive="yes" isFolder="no">
+                <name>open south door</name>
+                <packageName></packageName>
+                <script>send(&quot;open &quot; .. doorScript.doors[&quot;south&quot;])</script>
+                <command></command>
+                <keyCode>50</keyCode>
+                <keyModifier>603979776</keyModifier>
+            </Key>
+            <Key isActive="yes" isFolder="no">
+                <name>open east door</name>
+                <packageName></packageName>
+                <script>send(&quot;open &quot; .. doorScript.doors[&quot;east&quot;])</script>
+                <command></command>
+                <keyCode>54</keyCode>
+                <keyModifier>603979776</keyModifier>
+            </Key>
+            <Key isActive="yes" isFolder="no">
+                <name>open west door</name>
+                <packageName></packageName>
+                <script>send(&quot;open &quot; .. doorScript.doors[&quot;west&quot;])</script>
+                <command></command>
+                <keyCode>52</keyCode>
+                <keyModifier>603979776</keyModifier>
+            </Key>
+            <Key isActive="yes" isFolder="no">
+                <name>open up door</name>
+                <packageName></packageName>
+                <script>send(&quot;open &quot; .. doorScript.doors[&quot;up&quot;])</script>
+                <command></command>
+                <keyCode>57</keyCode>
+                <keyModifier>603979776</keyModifier>
+            </Key>
+            <Key isActive="yes" isFolder="no">
+                <name>open down door</name>
+                <packageName></packageName>
+                <script>send(&quot;open &quot; .. doorScript.doors[&quot;down&quot;])</script>
+                <command></command>
+                <keyCode>51</keyCode>
+                <keyModifier>603979776</keyModifier>
+            </Key>
+            <Key isActive="yes" isFolder="no">
+                <name>close north door</name>
+                <packageName></packageName>
+                <script>send(&quot;close &quot; .. doorScript.doors[&quot;north&quot;])</script>
+                <command></command>
+                <keyCode>56</keyCode>
+                <keyModifier>671088640</keyModifier>
+            </Key>
+            <Key isActive="yes" isFolder="no">
+                <name>close south door</name>
+                <packageName></packageName>
+                <script>send(&quot;close &quot; .. doorScript.doors[&quot;south&quot;])</script>
+                <command></command>
+                <keyCode>50</keyCode>
+                <keyModifier>671088640</keyModifier>
+            </Key>
+            <Key isActive="yes" isFolder="no">
+                <name>close west door</name>
+                <packageName></packageName>
+                <script>send(&quot;close &quot; .. doorScript.doors[&quot;west&quot;])</script>
+                <command></command>
+                <keyCode>52</keyCode>
+                <keyModifier>671088640</keyModifier>
+            </Key>
+            <Key isActive="yes" isFolder="no">
+                <name>close up door</name>
+                <packageName></packageName>
+                <script>send(&quot;close &quot; .. doorScript.doors[&quot;up&quot;])</script>
+                <command></command>
+                <keyCode>57</keyCode>
+                <keyModifier>671088640</keyModifier>
+            </Key>
+            <Key isActive="yes" isFolder="no">
+                <name>close east door</name>
+                <packageName></packageName>
+                <script>send(&quot;close &quot; .. doorScript.doors[&quot;east&quot;])</script>
+                <command></command>
+                <keyCode>54</keyCode>
+                <keyModifier>671088640</keyModifier>
+            </Key>
+            <Key isActive="yes" isFolder="no">
+                <name>close down door</name>
+                <packageName></packageName>
+                <script>send(&quot;close &quot; .. doorScript.doors[&quot;down&quot;])</script>
+                <command></command>
+                <keyCode>51</keyCode>
+                <keyModifier>671088640</keyModifier>
+            </Key>
+            <Key isActive="yes" isFolder="no">
+                <name>cl door2</name>
+                <packageName></packageName>
+                <script>send(&quot;close &quot; .. doorScript.doors[2])</script>
+                <command></command>
+                <keyCode>48</keyCode>
+                <keyModifier>671088640</keyModifier>
+            </Key>
+            <Key isActive="yes" isFolder="no">
+                <name>cl door1</name>
+                <packageName></packageName>
+                <script>send(&quot;close &quot; .. doorScript.doors[1])</script>
+                <command></command>
+                <keyCode>49</keyCode>
+                <keyModifier>671088640</keyModifier>
+            </Key>
+            <Key isActive="yes" isFolder="no">
+                <name>op door2</name>
+                <packageName></packageName>
+                <script>send(&quot;open &quot; .. doorScript.doors[2])</script>
+                <command></command>
+                <keyCode>48</keyCode>
+                <keyModifier>603979776</keyModifier>
+            </Key>
+            <Key isActive="yes" isFolder="no">
+                <name>op door1</name>
+                <packageName></packageName>
+                <script>send(&quot;open &quot; .. doorScript.doors[1])</script>
+                <command></command>
+                <keyCode>49</keyCode>
+                <keyModifier>603979776</keyModifier>
+            </Key>
+        </KeyGroup>
+    </KeyPackage>
+</MudletPackage>
